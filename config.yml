@@ -1,0 +1,102 @@
+data:
+    layout_dir: ${pwd}/data/layout
+    layout_main_file: 'layout_2021-08-16.tif'
+    crop_dir: ${pwd}/data/crop
+    cache_dir: ${pwd}/data/cache
+
+detection:
+    # нормализация цвета при переводе в uint8 (минимальный и максимальный)
+    normalize_min_percentile: 2
+    normalize_max_percentile: 98
+    # изменение размеров сцены перед обработкой
+    layout_width_resize_k: 0.2
+    layout_height_resize_k: 0.2
+    # изменение размеров сцены (crop'а) перед обработкой
+    crop_width_resize_k: 1
+    crop_height_resize_k: 1.4
+    # кол-во сопоставляемых точек подложки каждой точке сцены и
+    # кол-во обрабатываемых лучших групп (по knn_match_select_groups_n точек) по минимуму расстояния в группе
+    knn_match_n: 5
+    knn_match_select_groups_n: 100
+    # коэффициенты "расширения" прямоугольника поиска при поиске наибольшего кол-ва совпадения точек на подложке
+    # (относительно размеров сцены)
+    search_rect_width_resize_k: 1.1
+    search_rect_height_resize_k: 1.1
+    # шаг при переборе прямоугольников при поиске наибольшего кол-ва совпадения точек на подложке
+    # (в размерах сцены)
+    search_rect_width_step_k: 0.25
+    search_rect_height_step_k: 0.25
+    # коэффициент одинаковости точек в искомых прямоугольниках, чтобы эти прямоугольники были приняты за один и тот же,
+    # (в обработку берется первый из них по количеству найденных точек, потенциально самый удачный);
+    # по идее этот параметр должен быть тем меньше, чем больше knn_match_n
+    cross_points_same_area_k: 0.65
+
+service:
+    port: 8000
+    host: 0.0.0.0
+    reload: false
+    api_uri_prefix: /api/v1
+
+timezone: Europe/Moscow
+
+logging:
+    debug:
+        version: 1
+        disable_existing_loggers: true
+
+        formatters:
+            default:
+                # format: '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+                format: '%(asctime)s - %(filename)s - %(funcName)s - Line: %(lineno)d - %(levelname)s - %(message)s'
+        handlers:
+            default:
+                formatter: default
+                class: logging.StreamHandler
+                stream: 'ext://sys.stdout'
+        loggers:
+            '':
+                handlers: [default]
+                level: DEBUG
+
+    service:
+        version: 1
+        disable_existing_loggers: false
+
+        formatters:
+            default:
+                '()': uvicorn.logging.DefaultFormatter
+                fmt: '%(asctime)s - %(filename)s - %(funcName)s - Line: %(lineno)d - %(levelname)s - %(message)s'
+                use_colors: null
+            uniconv.default:
+                '()': uvicorn.logging.DefaultFormatter
+                fmt: '%(asctime)s %(levelprefix)s %(name)s - %(message)s'
+                use_colors: null
+            uniconv.access:
+                '()': uvicorn.logging.AccessFormatter
+                fmt: '%(asctime)s %(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s'
+        handlers:
+            default:
+                formatter: default
+                class: logging.FileHandler
+                filename: ${pwd}/data/log/service.log
+            uniconv.default:
+                formatter: uniconv.default
+                class: logging.FileHandler
+                filename: ${pwd}/log/server-info.log
+            uniconv.access:
+                formatter: uniconv.access
+                class: logging.FileHandler
+                filename: ${pwd}/log/access.log
+        loggers:
+            '':
+                handlers: [default]
+                level: DEBUG
+            uvicorn:
+                handlers: [uniconv.default]
+                level: INFO
+            uvicorn.error:
+                level: INFO
+            uvicorn.access:
+                handlers: [uniconv.access]
+                level: INFO
+                propagate: false
